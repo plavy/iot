@@ -4,14 +4,13 @@
 #include <zephyr/kernel.h>
 
 // time between switches on/off in millisecond
-#define DELAY 500
+#define DELAY 1000
 
 // get a handle on the device-node with the name led0 in the devicetree
 // more information on how to access the device tree from C is available at
 // https://docs.zephyrproject.org/latest/guides/dts/api-usage.html
 #define LED_RED_NODE DT_ALIAS(led0)
 #define LED_GREEN_NODE DT_NODELABEL(led1)
-#define LED_BLUE_NODE DT_NODELABEL(led2)
 
 // check if the device is set up properly (led0, the red one)
 #if DT_NODE_HAS_STATUS(LED_RED_NODE, okay)
@@ -26,22 +25,15 @@ static const struct gpio_dt_spec red_led =
 // check if the device is set up properly (led1, the green one)
 #if DT_NODE_HAS_STATUS(LED_GREEN_NODE, okay)
 static const struct gpio_dt_spec green_led =
-    GPIO_DT_SPEC_GET(LED_GREEN_NODE, gpios);  
-#else
-// in case the node is not "okay", i.e., the board does not support led
-#error "The node in the devicetree is not defined"
-#endif
-
-// check if the device is set up properly (led2, the blue one)
-#if DT_NODE_HAS_STATUS(LED_BLUE_NODE, okay)
-static const struct gpio_dt_spec blue_led =
-    GPIO_DT_SPEC_GET(LED_BLUE_NODE, gpios);
+    GPIO_DT_SPEC_GET(LED_GREEN_NODE, gpios);
 #else
 // in case the node is not "okay", i.e., the board does not support led
 #error "The node in the devicetree is not defined"
 #endif
 
 void main(void) {
+  // flag to memorize the state of the led
+  bool led_red = true;
   // store potential error values
   int ret;
 
@@ -67,24 +59,14 @@ void main(void) {
   if (ret < 0) {
     return;
   }
-  // also configure the blue led device for output and
-  // initialize it to a logical 0
-  ret = gpio_pin_configure_dt(&blue_led, GPIO_OUTPUT_INACTIVE);
-  if (ret < 0) {
-    return;
-  }
 
   // make them blink periodically
   while (1) {
-    printk("\nHello again!");
-    gpio_pin_set(red_led.port, red_led.pin, 1);
+    gpio_pin_set(red_led.port, red_led.pin, (int)led_red);
+    gpio_pin_set(green_led.port, green_led.pin, 1 - (int)led_red);
+    led_red = !led_red;
     k_msleep(DELAY);
-    gpio_pin_set(red_led.port, red_led.pin, 0.5);
-    k_msleep(DELAY);
-    gpio_pin_set(red_led.port, red_led.pin, 0);
-    k_msleep(DELAY);
-
-    //gpio_pin_set(green_led.port, green_led.pin, 1);
-    //gpio_pin_set(blue_led.port, blue_led.pin, 1);
+    // TODO: make the blue led blink in between the other two for half the
+    // duration of the delay
   }
 }
